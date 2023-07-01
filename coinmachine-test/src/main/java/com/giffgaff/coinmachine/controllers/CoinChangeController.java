@@ -1,53 +1,67 @@
 package com.giffgaff.coinmachine.controllers;
 
-import java.util.HashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Map;
+import java.util.Optional;
 
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
+import com.giffgaff.coinmachine.error.CoinCurencyInvalidException;
+import com.giffgaff.coinmachine.error.CoinListNotFoundException;
+import com.giffgaff.coinmachine.error.CurrencyInvalidException;
+import com.giffgaff.coinmachine.service.CoinService;
+
+@CrossOrigin(origins = "http://localhost:3000")
 @RestController
-@RequestMapping(path = "/getChange")
+@RequestMapping("api/v1")
 public class CoinChangeController {
 
-    // Assuming a finite set of pence denominations
-    private final int[] COIN_TYPES = { 200, 100, 50, 20, 10, 5, 2, 1 };
-    private final String[] COIN_DENOMINATIONS = { "£2", "£1", "50p", "20p", "10p", "5p", "2p", "1p" };
+    @Autowired
+    private CoinService service;
 
-    @GetMapping("/dispenseChange")
-    public HashMap<String, Integer> fetchChange(@RequestParam String amount) {
-
-        HashMap<String, Integer> coinCount = new HashMap<String, Integer>();
-
-        // Convert the change to be dispensed in pence
-        int remainingAmount = (int) (getAmount(amount) * 100);
-
-        for (int i = 0; i < COIN_TYPES.length; i++) {
-            int coinNum = remainingAmount / COIN_TYPES[i];
-            if (coinNum != 0)
-                coinCount.put(COIN_DENOMINATIONS[i], coinNum);
-            remainingAmount = remainingAmount % COIN_TYPES[i];
-        }
-        return coinCount;
+    @GetMapping("/coins")
+    public ResponseEntity<Map<String, Integer>> getAvailableCoins() throws CoinListNotFoundException {
+        Map<String, Integer> coinsAvailable = service.getAvailableCoins();
+        return ResponseEntity.ok().body(coinsAvailable);
     }
 
-    private double getAmount(String amount) {
-        double strippedAmount = 0.0;
-        try {
-            Pattern pattern = Pattern.compile("^£\\d+(\\.\\d{2})?$");
-            Matcher matcher = pattern.matcher(amount);
-            if (!matcher.find()) {
-                throw new IllegalArgumentException("Invalid currency symbol. Only £ is allowed.");
-            } else {
-                strippedAmount = Double.parseDouble(amount.replaceAll("£", ""));
-            }
-        } catch (IllegalArgumentException e) {
-            // throw IllegalArgumentException;
-        }
-        return strippedAmount;
-
+    @GetMapping("/dispense/{amount}")
+    public ResponseEntity<Map<String, Integer>> tenderChange(@PathVariable("amount") String amount)
+            throws CurrencyInvalidException {
+        Map<String, Integer> result = service.tenderChange(amount);
+        System.out.println(result.toString());
+        return ResponseEntity.ok().body(result);
     }
+
+    @PostMapping(path = "/coins", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Integer>> addCoins(@RequestBody Map<String, Integer> creditCoins)
+            throws CurrencyInvalidException {
+        Map<String, Integer> result = service.saveCoins(creditCoins);
+        return ResponseEntity.ok().body(result);
+    }
+
+    @GetMapping(value="/dispense/v2/{amount}")
+    public @ResponseBody Map<String,Integer> calculateChangeTDD(@PathVariable("amount") String amount){
+
+        Optional<Map<String, Integer>> resultMap;
+        try{
+            resultMap = service.method2_calculate_change(amount);
+        }catch(CoinCurencyInvalidException exception){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,exception.getMessage());
+        }
+        return resultMap.get();
+    }
+
+   
 }

@@ -1,0 +1,25 @@
+
+
+### Fetch available coins
+GET http://localhost:8089/api/v1/coins
+
+### Fetch the change
+GET http://localhost:8089/api/v1/dispense/£45.67
+
+### Add coins to inventory
+POST http://localhost:8089/api/contenv1/coins
+Content-Type: application/json
+{
+  "£2": 100,
+  "£1": 100,
+  "50p": 100,
+  "20p": 100,
+  "10p": 100,
+  "5p": 100,
+  "2p": 100,
+  "1p": 100
+}
+
+#### Dispatch coins version 2
+GET http://localhost:8089/api/v2/dispense/£5.67
+
